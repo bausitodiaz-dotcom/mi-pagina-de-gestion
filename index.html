@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Productos - Menú Principal</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+            background-color: #f0f0f0;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .btn-header {
+            padding: 8px 15px;
+            margin: 0 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .btn-menu {
+            background-color: #e0e0e0;
+            color: #333;
+        }
+        .btn-consultar-header {
+            background-color: #0275d8;
+            color: white;
+        }
+        .tarjetas {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 50px;
+        }
+        .tarjeta {
+            width: 250px;
+            height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .carnes {
+            background-color: #d9534f;
+        }
+        .congelados {
+            background-color: #5bc0de;
+        }
+        .tarjeta span {
+            margin-bottom: 15px;
+            font-size: 24px;
+        }
+    </style>
+</head>
+<body>
+    <h1>📊 Gestión de Productos</h1>
+
+    <!-- MENÚ PRINCIPAL BOTÓN FUNCIONAL -->
+    <button class="btn-header btn-menu" onclick="location.reload()">Menú Principal</button>
+    <button class="btn-header btn-consultar-header" onclick="location.href='consultar.html'">Consultar Registros</button>
+
+    <div class="tarjetas">
+        <div class="tarjeta carnes" onclick="location.href='entrada-carnes.html'">
+            <span>🍖</span>
+            Entrada de Carnes
+        </div>
+        <div class="tarjeta congelados" onclick="location.href='entrada-congelados.html'">
+            <span>❄️</span>
+            Entrada de Congelados
+        </div>
+    </div>
+</body>
+</html>

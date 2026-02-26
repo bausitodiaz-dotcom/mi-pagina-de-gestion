@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Consultar Registros</title>
+    <style>
+        body { font-family: Arial; margin: 20px; background: #f0f0f0; }
+        h1 { text-align: center; color: #333; }
+        .btn { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; color: white; margin: 5px; }
+        .menu { background: #e0e0e0; color: black; }
+        .acciones { text-align: center; margin-bottom: 20px; }
+        .filtros { background: white; padding: 20px; max-width: 800px; margin: 0 auto 20px; border-radius: 8px; }
+        .filtros input, .filtros select { padding: 8px; margin: 5px; border-radius: 4px; border: 1px solid #ccc; }
+        .contenedor-registros { background: white; padding: 20px; max-width: 800px; margin: 0 auto; border-radius: 8px; }
+        .registro { border: 1px solid #eee; padding: 15px; margin: 10px 0; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>Consultar Registros de Productos</h1>
+    <div class="acciones">
+        <button class="btn menu" onclick="location.href='index.html'">Menú Principal</button>
+        <button class="btn" style="background: #d9534f;" onclick="eliminarTodosLosRegistros()">Eliminar Todos los Registros</button>
+    </div>
+
+    <div class="filtros">
+        <h3>Filtros:</h3>
+        <select id="filtroCategoria">
+            <option value="todos">Todas las categorías</option>
+            <option value="Carnes">Carnes</option>
+            <option value="Congelados">Congelados</option>
+        </select>
+        <input type="text" id="filtroNombre" placeholder="Buscar por nombre...">
+        <input type="date" id="filtroFechaInicio">
+        <input type="date" id="filtroFechaFin">
+        <button class="btn" style="background: #0275d8;" onclick="aplicarFiltros()">Aplicar Filtros</button>
+        <button class="btn" style="background: #666;" onclick="limpiarFiltros()">Limpiar Filtros</button>
+    </div>
+
+    <div class="contenedor-registros" id="contenedorRegistros">
+        <p style="text-align: center; color: #666;">No hay registros cargados aún</p>
+    </div>
+
+    <script>
+        function mostrarRegistros(lista) {
+            const contenedor = document.getElementById("contenedorRegistros");
+            contenedor.innerHTML = "";
+
+            if (lista.length === 0) {
+                contenedor.innerHTML = "<p style='text-align: center; color: #666;'>No hay registros cargados aún</p>";
+                return;
+            }
+
+            lista.forEach(prod => {
+                const registro = document.createElement("div");
+                registro.className = "registro";
+                registro.innerHTML = `
+                    <h3>${prod.nombre}</h3>
+                    <p>Categoría: ${prod.categoria}</p>
+                    <p>Cantidad: ${prod.cantidad} kg</p>
+                    <p>Fecha: ${prod.fecha}</p>
+                    <p>Proveedor: ${prod.proveedor}</p>
+                    <p>Precio: $${prod.precio} USD/kg</p>
+                `;
+                contenedor.appendChild(registro);
+            });
+        }
+
+        function aplicarFiltros() {
+            const productos = JSON.parse(localStorage.getItem('todosProductos')) || [];
+            const categoria = document.getElementById("filtroCategoria").value;
+            const nombre = document.getElementById("filtroNombre").value.toLowerCase();
+            const fechaInicio = document.getElementById("filtroFechaInicio").value;
+            const fechaFin = document.getElementById("filtroFechaFin").value;
+
+            const filtrados = productos.filter(prod => {
+                const catOk = categoria === "todos" || prod.categoria === categoria;
+                const nomOk = prod.nombre.toLowerCase().includes(nombre);
+                const fecOk = (!fechaInicio && !fechaFin) || (prod.fecha >= fechaInicio && prod.fecha <= fechaFin);
+                return catOk && nomOk && fecOk;
+            });
+
+            mostrarRegistros(filtrados);
+        }
+
+        function limpiarFiltros() {
+            document.getElementById("filtroCategoria").value = "todos";
+            document.getElementById("filtroNombre").value = "";
+            document.getElementById("filtroFechaInicio").value = "";
+            document.getElementById("filtroFechaFin").value = "";
+            mostrarRegistros(JSON.parse(localStorage.getItem('todosProductos')) || []);
+        }
+
+        function eliminarTodosLosRegistros() {
+            if (confirm("¿Segura que quieres eliminar todos los registros?")) {
+                localStorage.removeItem('todosProductos');
+                mostrarRegistros([]);
+            }
+        }
+
+        window.onload = () => mostrarRegistros(JSON.parse(localStorage.getItem('todosProductos')) || []);
+    </script>
+</body>
+</html>

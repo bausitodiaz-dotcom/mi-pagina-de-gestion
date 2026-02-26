@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Entrada de Congelados - Archivos</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial; text-align: center; background: #f0f0f0; padding: 20px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; color: white; margin: 5px; }
+        .menu { background: #e0e0e0; color: black; }
+        .subir { background: #5bc0de; margin-top: 10px; }
+        .contenedor { background: white; padding: 25px; max-width: 1000px; margin: 20px auto; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        #msg { margin: 15px 0; padding: 12px; border-radius: 5px; display: none; }
+        .ok { background: #dff0d8; color: #3c763d; display: block; }
+        .mal { background: #f2dede; color: #a94442; display: block; }
+        .galeria { margin-top: 25px; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; }
+        .archivo-item { 
+            background: #f8f8f8; 
+            padding: 15px; 
+            border-radius: 8px; 
+            border: 1px solid #eee; 
+            cursor: pointer; 
+            transition: transform 0.2s; 
+        }
+        .archivo-item:hover { transform: scale(1.03); box-shadow: 0 3px 6px rgba(0,0,0,0.15); }
+        .icono-pdf { font-size: 40px; margin: 20px 0; color: #5bc0de; }
+        .archivo-item p { margin: 10px 0; font-size: 14px; color: #333; }
+        .archivo-item .paginas { font-size: 12px; color: #666; font-weight: bold; }
+        .btn-eliminar-item { 
+            background: #666; 
+            padding: 5px 10px; 
+            font-size: 13px; 
+            margin-top: 10px; 
+            cursor: pointer;
+        }
+
+        .visor-pdf {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            justify-content: center;
+            align-items: flex-start;
+            z-index: 1000;
+            padding: 30px 20px;
+            overflow-y: auto;
+        }
+        .visor-contenido {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            max-width: 900px;
+            width: 100%;
+        }
+        .visor-contenido iframe {
+            width: 100%;
+            height: 900px;
+            border: none;
+        }
+        .btn-cerrar {
+            background: #5bc0de;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 20px;
+            margin-bottom: 15px;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+</head>
+<body>
+    <h1>📊 Gestión de Productos - Congelados</h1>
+    <button class="btn menu" onclick="location.href='index.html'">Menú Principal</button>
+
+    <div class="contenedor">
+        <h2>📥 Subir y Ver Archivos</h2>
+        <p>Sube uno o varios PDFs/JPG (cada archivo se guarda como ítem único):</p>
+        <!-- AGREGAMOS EL ATRIBUTO MULTIPLE -->
+        <input type="file" id="archivo" accept=".pdf, .jpg, .jpeg" multiple>
+        <button class="btn subir" onclick="subirMultiplesArchivos()">Subir Archivos</button>
+        <div id="msg"></div>
+
+        <div class="galeria" id="galeriaArchivos"></div>
+    </div>
+
+    <div class="visor-pdf" id="visorPdf">
+        <div class="visor-contenido">
+            <button class="btn-cerrar" onclick="cerrarVisor()">×</button>
+            <div id="contenidoVisor"></div>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'archivosCongeladosMultiples';
+        const visorPdf = document.getElementById('visorPdf');
+        const contenidoVisor = document.getElementById('contenidoVisor');
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+        window.onload = mostrarArchivosGuardados;
+
+        // FUNCIÓN PARA SUBIR VARIOS ARCHIVOS A LA VEZ
+        function subirMultiplesArchivos() {
+            const archivos = document.getElementById('archivo').files;
+            const msg = document.getElementById('msg');
+
+            if (archivos.length === 0) {
+                msg.className = 'mal';
+                msg.textContent = '⚠️ Selecciona al menos un archivo';
+                msg.style.display = 'block';
+                return;
+            }
+
+            msg.className = '';
+            msg.textContent = `🔄 Procesando ${archivos.length} archivo(s)...`;
+            msg.style.display = 'block';
+
+            let archivosGuardados = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+            let archivosProcesados = 0;
+
+            // RECORREMOS CADA ARCHIVO SELECCIONADO
+            for (let i = 0; i < archivos.length; i++) {
+                const archivo = archivos[i];
+                const tipoValido = archivo.type === 'application/pdf' || archivo.type.includes('image/jpeg');
+
+                if (!tipoValido) {
+                    msg.className = 'mal';
+                    msg.textContent = `⚠️ El archivo ${archivo.name} no es válido (solo PDF/JPG)`;
+                    continue;
+                }
+
+                const lector = new FileReader();
+
+                lector.onload = async function(e) {
+                    let numPaginas = 1;
+                    let contenidoFinal = e.target.result;
+
+                    if (archivo.type === 'application/pdf') {
+                        try {
+                            const pdf = await pdfjsLib.getDocument(new Uint8Array(e.target.result)).promise;
+                            numPaginas = pdf.numPages;
+                            contenidoFinal = URL.createObjectURL(archivo);
+                        } catch (err) {
+                            numPaginas = 1;
+                            contenidoFinal = URL.createObjectURL(archivo);
+                        }
+                    }
+
+                    // CADA ARCHIVO SE GUARDA COMO UN ÍTEM ÚNICO
+                    const archivoUnico = {
+                        id: Date.now() + i,
+                        nombre: archivo.name,
+                        tipo: archivo.type,
+                        contenido: contenidoFinal,
+                        fecha: new Date().toLocaleString('es-ES'),
+                        paginas: numPaginas
+                    };
+
+                    archivosGuardados.push(archivoUnico);
+                    archivosProcesados++;
+
+                    // CUANDO SE TERMINEN DE PROCESAR TODOS
+                    if (archivosProcesados === archivos.length) {
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(archivosGuardados));
+                        msg.className = 'ok';
+                        msg.textContent = `✅ ¡Listo! Se guardaron ${archivosProcesados} archivo(s) como ítems únicos`;
+                        document.getElementById('archivo').value = '';
+                        mostrarArchivosGuardados();
+                    }
+                };
+
+                if (archivo.type === 'application/pdf') {
+                    lector.readAsArrayBuffer(archivo);
+                } else {
+                    lector.readAsDataURL(archivo);
+                }
+            }
+        }
+
+        function mostrarArchivosGuardados() {
+            const galeria = document.getElementById('galeriaArchivos');
+            const archivosGuardados = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+
+            if (archivosGuardados.length === 0) {
+                galeria.innerHTML = '<p style="color:#666; grid-column: 1/-1; padding: 20px;">No hay archivos guardados aún</p>';
+                return;
+            }
+
+            galeria.innerHTML = '';
+
+            archivosGuardados.forEach(archivo => {
+                const item = document.createElement('div');
+                item.className = 'archivo-item';
+
+                if (archivo.tipo.includes('image')) {
+                    item.innerHTML = `
+                        <img src="${archivo.contenido}" alt="${archivo.nombre}" style="max-width:100%; max-height:150px; object-fit:contain;">
+                        <p><strong>${archivo.nombre}</strong></p>
+                        <p class="paginas">Imagen única</p>
+                        <p style="font-size:12px; color:#666;">Subido: ${archivo.fecha}</p>
+                        <button class="btn btn-eliminar-item" onclick="event.stopPropagation(); eliminarArchivo(${archivo.id})">Eliminar</button>
+                    `;
+                } else {
+                    item.innerHTML = `
+                        <div class="icono-pdf">📄</div>
+                        <p><strong>${archivo.nombre}</strong></p>
+                        <p class="paginas">${archivo.paginas} PÁGINA(S)</p>
+                        <p style="font-size:12px; color:#666;">Subido: ${archivo.fecha}</p>
+                        <button class="btn btn-eliminar-item" onclick="event.stopPropagation(); eliminarArchivo(${archivo.id})">Eliminar</button>
+                    `;
+                }
+
+                item.onclick = () => abrirArchivoCompleto(archivo);
+                galeria.appendChild(item);
+            });
+        }
+
+        function abrirArchivoCompleto(archivo) {
+            contenidoVisor.innerHTML = '';
+
+            if (archivo.tipo.includes('image')) {
+                const img = document.createElement('img');
+                img.src = archivo.contenido;
+                img.style.maxWidth = '100%';
+                contenidoVisor.appendChild(img);
+            } else {
+                const iframe = document.createElement('iframe');
+                iframe.src = archivo.contenido;
+                iframe.width = '100%';
+                iframe.height = `${archivo.paginas * 900}px`;
+                contenidoVisor.appendChild(iframe);
+            }
+
+            visorPdf.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function cerrarVisor() {
+            visorPdf.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        function eliminarArchivo(id) {
+            if (confirm('¿Eliminar este archivo?')) {
+                let archivosGuardados = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+                archivosGuardados = archivosGuardados.filter(arch => arch.id !== id);
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(archivosGuardados));
+                mostrarArchivosGuardados();
+            }
+        }
+
+        visorPdf.onclick = (e) => {
+            if (e.target === visorPdf) cerrarVisor();
+        };
+    </script>
+</body>
+</html>
